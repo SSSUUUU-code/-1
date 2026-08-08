@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>公共工程品質管理訓練班（土建）刷題網</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        html { -webkit-tap-highlight-color: transparent; }
+        body { touch-action: manipulation; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-indigo-600 dark:bg-slate-800 text-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
+            <button onclick="goHome()" class="flex items-center gap-2 font-bold text-base tracking-wide focus:outline-none">
+                <i class="fa-solid fa-hard-hat text-amber-300 text-xl"></i>
+                <span>土建品管班題庫</span>
+            </button>
+            <div class="flex items-center gap-3 text-sm">
+                <button onclick="toggleDarkMode()" title="切換深色模式" class="p-1.5 rounded-lg bg-indigo-500/30 dark:bg-slate-700 hover:bg-indigo-500/50 transition">
+                    <i id="theme-icon" class="fa-solid fa-moon"></i>
+                </button>
+                <button onclick="showBookmarkView()" class="px-2.5 py-1 bg-amber-500/90 hover:bg-amber-500 rounded-lg text-xs font-medium flex items-center gap-1 transition shadow-sm">
+                    <i class="fa-solid fa-star"></i>
+                    <span>收藏 (<span id="bookmark-badge">0</span>)</span>
+                </button>
+                <button onclick="showMistakeView()" class="px-2.5 py-1 bg-rose-500/90 hover:bg-rose-500 rounded-lg text-xs font-medium flex items-center gap-1 transition shadow-sm">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>錯題 (<span id="mistake-badge">0</span>)</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Mobile Container -->
+    <main class="flex-1 max-w-md mx-auto w-full p-4 flex flex-col justify-between">
+        
+        <!-- Loading State Indicator -->
+        <div id="loading-spinner" class="py-20 text-center space-y-4">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
+            <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">正在讀取題庫資料 (quiz_data.json)...</p>
+        </div>
+
+        <!-- File Upload Fallback Modal -->
+        <div id="file-upload-fallback" class="hidden bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-4 rounded-2xl mb-4 text-center space-y-3">
+            <div class="text-amber-600 dark:text-amber-400 font-medium text-sm">
+                <i class="fa-solid fa-circle-info mr-1"></i> 未能自動載入 <code>quiz_data.json</code>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-300">請上傳您的 <code>quiz_data.json</code> 檔：</p>
+            <input type="file" id="json-file-input" accept=".json" onchange="handleFileUpload(event)" class="hidden">
+            <label for="json-file-input" class="inline-block px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl cursor-pointer shadow hover:bg-indigo-700 transition">
+                <i class="fa-solid fa-file-arrow-up mr-1"></i> 手動上傳 quiz_data.json
+            </label>
+        </div>
+
+        <!-- VIEW 1: HOME DASHBOARD -->
+        <div id="view-home" class="hidden space-y-5">
+            <!-- Stat Summary Cards -->
+            <div class="grid grid-cols-3 gap-3">
+                <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
+                    <div class="text-xs text-slate-400 font-medium">總題數</div>
+                    <div id="stat-total" class="text-lg font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">0</div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
+                    <div class="text-xs text-slate-400 font-medium">已練習</div>
+                    <div id="stat-practiced" class="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">0</div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
+                    <div class="text-xs text-slate-400 font-medium">錯題積累</div>
+                    <div id="stat-mistakes" class="text-lg font-bold text-rose-500 mt-0.5">0</div>
+                </div>
+            </div>
+
+            <!-- Chapter / Unit Selector Card -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-book-bookmark text-indigo-600 dark:text-indigo-400"></i>
+                        <span>章節單元刷題</span>
+                    </h2>
+                    <span id="unit-count-badge" class="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded-full">17 個單元</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">選擇欲練習之單元課程：</label>
+                    <select id="unit-select" class="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 dark:text-slate-200">
+                        <option value="ALL">🌟 全部單元 (綜合練習)</option>
+                    </select>
+                </div>
+
+                <!-- NEW: Option Shuffle Toggle Switch -->
+                <div class="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-rotate text-indigo-500 text-sm"></i>
+                        <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">選項順序打亂（隨機排列）</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="shuffle-options-toggle" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:peer-focus:ring-indigo-800 peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                    <button onclick="startPractice('order')" class="py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm shadow-md active:scale-95 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-list-ol"></i> 順序刷題
+                    </button>
+                    <button onclick="startPractice('random')" class="py-3 px-4 bg-indigo-50 dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 font-semibold rounded-xl text-sm active:scale-95 transition flex items-center justify-center gap-2 border border-indigo-200 dark:border-slate-600">
+                        <i class="fa-solid fa-shuffle"></i> 隨機刷題
+                    </button>
+                </div>
+
+                <button onclick="startPractice('recite')" class="w-full py-2.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-medium rounded-xl text-xs hover:bg-emerald-100 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-eye"></i> 開啟速記背題模式 (直顯正確答案)
+                </button>
+            </div>
+
+            <!-- Mock Exam Card -->
+            <div class="bg-gradient-to-br from-indigo-600 to-purple-700 p-5 rounded-2xl shadow-md text-white space-y-3">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="font-bold text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-stopwatch"></i> 全真模擬測驗
+                        </h3>
+                        <p class="text-xs text-indigo-100 mt-1">從總題庫隨機抽取 50 題，限時 50 分鐘</p>
+                    </div>
+                    <span class="bg-white/20 text-xs px-2.5 py-1 rounded-full font-semibold">50 題</span>
+                </div>
+                <button onclick="startMockExam()" class="w-full py-3 bg-white text-indigo-700 font-bold rounded-xl shadow-lg hover:bg-indigo-50 active:scale-95 transition text-sm">
+                    開始模擬考試
+                </button>
+            </div>
+
+            <!-- Search Question Card -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                    <input type="text" id="search-input" onkeyup="handleSearch()" placeholder="搜尋關鍵字或題目..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div id="search-results-info" class="text-xs text-slate-500 dark:text-slate-400 px-1 hidden"></div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: QUIZ / PRACTICE INTERFACE -->
+        <div id="view-quiz" class="hidden flex-1 flex flex-col justify-between space-y-4">
+            
+            <!-- Quiz Top Bar -->
+            <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex justify-between items-center text-xs font-semibold text-slate-600 dark:text-slate-300">
+                <div class="flex items-center gap-2">
+                    <span id="quiz-mode-tag" class="bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 px-2.5 py-1 rounded-lg">單元練習</span>
+                    <span id="quiz-progress-text">1 / 100</span>
+                </div>
+                <div id="exam-timer" class="hidden text-rose-600 dark:text-rose-400 font-mono font-bold text-sm flex items-center gap-1">
+                    <i class="fa-regular fa-clock"></i> <span id="timer-text">50:00</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleBookmarkCurrent()" id="quiz-bookmark-btn" title="收藏此題" class="text-slate-400 hover:text-amber-500 text-base">
+                        <i class="fa-regular fa-star"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4 flex-1 flex flex-col">
+                <div class="flex justify-between items-center text-xs text-slate-400 border-b border-slate-100 dark:border-slate-700/60 pb-2.5">
+                    <span id="question-unit-label" class="truncate max-w-[200px]">單元一</span>
+                    <span id="question-id-label" class="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-500 dark:text-slate-300">No. 1</span>
+                </div>
+
+                <h3 id="question-stem" class="text-base font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
+                    題目載入中...
+                </h3>
+
+                <!-- Options List Container -->
+                <div id="options-container" class="space-y-2.5 pt-2 flex-1"></div>
+
+                <!-- Recite Mode Answer Box -->
+                <div id="recite-answer-box" class="hidden bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3.5 rounded-xl text-sm text-emerald-800 dark:text-emerald-300 font-medium">
+                    <i class="fa-solid fa-circle-check mr-1.5"></i> 正確答案：<span id="recite-answer-text" class="font-bold text-base"></span>
+                </div>
+            </div>
+
+            <!-- Bottom Control Navigation -->
+            <div class="flex justify-between items-center gap-3 pt-1">
+                <button onclick="prevQuestion()" class="flex-1 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 font-medium text-sm active:bg-slate-100 dark:active:bg-slate-700 transition flex items-center justify-center gap-1 shadow-sm">
+                    <i class="fa-solid fa-chevron-left text-xs"></i> 上一題
+                </button>
+                
+                <button id="submit-exam-btn" onclick="submitExam()" class="hidden flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm shadow-md transition">
+                    交卷結算
+                </button>
+
+                <button onclick="nextQuestion()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm shadow-md active:scale-95 transition flex items-center justify-center gap-1">
+                    下一題 <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW 3: EXAM RESULT SUMMARY -->
+        <div id="view-result" class="hidden space-y-5 py-4">
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm text-center space-y-4">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-3xl mb-1">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+                <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">測驗成績結算</h2>
+                
+                <div class="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">
+                    <span id="result-score">0</span> <span class="text-base font-normal text-slate-400">/ 100 分</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-3 text-sm">
+                    <div class="bg-emerald-50 dark:bg-emerald-950/40 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900">
+                        <div class="text-xs text-emerald-600 dark:text-emerald-400">答對題數</div>
+                        <div id="result-correct" class="text-lg font-bold text-emerald-700 dark:text-emerald-300">0 / 50</div>
+                    </div>
+                    <div class="bg-rose-50 dark:bg-rose-950/40 p-3 rounded-xl border border-rose-100 dark:border-rose-900">
+                        <div class="text-xs text-rose-600 dark:text-rose-400">答錯題數</div>
+                        <div id="result-wrong" class="text-lg font-bold text-rose-700 dark:text-rose-300">0 / 50</div>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex gap-3">
+                    <button onclick="reviewExamMistakes()" class="flex-1 py-3 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 font-semibold rounded-xl text-sm">
+                        檢視本次錯題
+                    </button>
+                    <button onclick="goHome()" class="flex-1 py-3 bg-indigo-600 text-white font-semibold rounded-xl text-sm shadow">
+                        返回主頁
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="py-3 text-center text-xs text-slate-400 dark:text-slate-600 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        公共工程品質管理訓練班（土建）115年適用題庫
+    </footer>
+
+    <script>
+        let allQuestions = [];
+        let currentQuestions = [];
+        let currentIndex = 0;
+        let isReciteMode = false;
+        let isExamMode = false;
+        let examAnswers = {};
+        let timerInterval = null;
+        let examTimeRemaining = 3000;
+
+        let userMistakes = JSON.parse(localStorage.getItem('qc_mistakes') || '[]');
+        let userBookmarks = JSON.parse(localStorage.getItem('qc_bookmarks') || '[]');
+        let userPracticed = JSON.parse(localStorage.getItem('qc_practiced') || '[]');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            loadQuestionData();
+        });
+
+        function loadQuestionData() {
+            fetch('quiz_data.json')
+                .then(res => {
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    allQuestions = data;
+                    setupDashboard();
+                })
+                .catch(err => {
+                    console.warn("Auto-fetch quiz_data.json failed:", err);
+                    document.getElementById('loading-spinner').classList.add('hidden');
+                    document.getElementById('file-upload-fallback').classList.remove('hidden');
+                });
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    allQuestions = JSON.parse(e.target.result);
+                    document.getElementById('file-upload-fallback').classList.add('hidden');
+                    setupDashboard();
+                } catch (err) {
+                    alert("JSON 解析失敗，請確認檔案格式正確。");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function setupDashboard() {
+            document.getElementById('loading-spinner').classList.add('hidden');
+            document.getElementById('view-home').classList.remove('hidden');
+
+            const select = document.getElementById('unit-select');
+            select.innerHTML = '<option value="ALL">🌟 全部單元 (綜合練習)</option>';
+            
+            const units = [...new Set(allQuestions.map(q => q.unit))];
+            document.getElementById('unit-count-badge').innerText = `${units.length} 個單元`;
+
+            units.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u;
+                const count = allQuestions.filter(q => q.unit === u).length;
+                opt.innerText = `${u} (${count}題)`;
+                select.appendChild(opt);
+            });
+
+            updateBadgesAndStats();
+        }
+
+        function updateBadgesAndStats() {
+            document.getElementById('stat-total').innerText = allQuestions.length;
+            document.getElementById('stat-practiced').innerText = userPracticed.length;
+            document.getElementById('stat-mistakes').innerText = userMistakes.length;
+            document.getElementById('mistake-badge').innerText = userMistakes.length;
+            document.getElementById('bookmark-badge').innerText = userBookmarks.length;
+        }
+
+        function startPractice(type) {
+            const selectedUnit = document.getElementById('unit-select').value;
+            let list = selectedUnit === 'ALL' 
+                ? [...allQuestions] 
+                : allQuestions.filter(q => q.unit === selectedUnit);
+
+            if (list.length === 0) return alert("選定單元無題目！");
+
+            isExamMode = false;
+            isReciteMode = (type === 'recite');
+
+            if (type === 'random') {
+                list.sort(() => Math.random() - 0.5);
+            }
+
+            currentQuestions = list;
+            currentIndex = 0;
+            
+            document.getElementById('quiz-mode-tag').innerText = isReciteMode ? "速記背題" : (type === 'random' ? "隨機練習" : "順序練習");
+            document.getElementById('exam-timer').classList.add('hidden');
+            document.getElementById('submit-exam-btn').classList.add('hidden');
+
+            switchView('quiz');
+            renderQuestion();
+        }
+
+        function startMockExam() {
+            isExamMode = true;
+            isReciteMode = false;
+            examAnswers = {};
+            examTimeRemaining = 3000;
+
+            currentQuestions = [...allQuestions].sort(() => Math.random() - 0.5).slice(0, 50);
+            currentIndex = 0;
+
+            document.getElementById('quiz-mode-tag').innerText = "模擬測驗";
+            document.getElementById('exam-timer').classList.remove('hidden');
+            document.getElementById('submit-exam-btn').classList.remove('hidden');
+
+            startTimer();
+            switchView('quiz');
+            renderQuestion();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                examTimeRemaining--;
+                updateTimerDisplay();
+                if (examTimeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    alert("考試時間到，自動交卷！");
+                    submitExam();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(examTimeRemaining / 60).toString().padStart(2, '0');
+            const s = (examTimeRemaining % 60).toString().padStart(2, '0');
+            document.getElementById('timer-text').innerText = `${m}:${s}`;
+        }
+
+        // Render Question with Optional Option Shuffling
+        function renderQuestion() {
+            if (currentQuestions.length === 0) return;
+            const q = currentQuestions[currentIndex];
+
+            document.getElementById('quiz-progress-text').innerText = `${currentIndex + 1} / ${currentQuestions.length}`;
+            document.getElementById('question-unit-label').innerText = q.unit;
+            document.getElementById('question-id-label').innerText = `No. ${q.id}`;
+            document.getElementById('question-stem').innerText = q.stem;
+
+            const isBookmarked = userBookmarks.includes(q.id);
+            const bmBtn = document.getElementById('quiz-bookmark-btn');
+            bmBtn.innerHTML = isBookmarked 
+                ? '<i class="fa-solid fa-star text-amber-500"></i>' 
+                : '<i class="fa-regular fa-star"></i>';
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            const reciteBox = document.getElementById('recite-answer-box');
+            if (isReciteMode) {
+                reciteBox.classList.remove('hidden');
+                document.getElementById('recite-answer-text').innerText = `${q.answer}. ${q.options[q.answer] || ''}`;
+            } else {
+                reciteBox.classList.add('hidden');
+            }
+
+            // Build Option Entries [{originalKey: 'A', text: '...'}, ...]
+            const keys = ['A', 'B', 'C', 'D'];
+            let optionEntries = [];
+            keys.forEach(k => {
+                if (q.options[k]) {
+                    optionEntries.push({ originalKey: k, text: q.options[k] });
+                }
+            });
+
+            // Check if user enabled option shuffling
+            const shouldShuffle = document.getElementById('shuffle-options-toggle').checked;
+            if (shouldShuffle) {
+                // Use question id + index as seed or simple deterministic shuffle per question
+                optionEntries.sort(() => Math.random() - 0.5);
+            }
+
+            // Render options displaying A, B, C, D in order on UI, but mapping back to original Key
+            const uiLabels = ['A', 'B', 'C', 'D'];
+            optionEntries.forEach((entry, idx) => {
+                const uiLabel = uiLabels[idx]; // Displayed label (A, B, C, D)
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition text-sm flex items-start gap-3 active:scale-[0.99]";
+
+                btn.setAttribute('data-orig-key', entry.originalKey);
+
+                btn.innerHTML = `
+                    <span class="font-bold text-xs bg-indigo-100 dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 px-2 py-1 rounded-md shrink-0 mt-0.5">${uiLabel}</span>
+                    <span class="leading-relaxed flex-1">${entry.text}</span>
+                `;
+
+                if (isExamMode) {
+                    if (examAnswers[q.id] === entry.originalKey) {
+                        btn.classList.add('border-indigo-600', 'bg-indigo-50', 'dark:bg-indigo-950/50', 'font-semibold');
+                    }
+                    btn.onclick = () => {
+                        examAnswers[q.id] = entry.originalKey;
+                        renderQuestion();
+                    };
+                } else if (!isReciteMode) {
+                    btn.onclick = () => checkPracticeAnswer(btn, entry.originalKey, q.answer, q.id);
+                }
+
+                container.appendChild(btn);
+            });
+
+            if (!userPracticed.includes(q.id)) {
+                userPracticed.push(q.id);
+                localStorage.setItem('qc_practiced', JSON.stringify(userPracticed));
+                updateBadgesAndStats();
+            }
+        }
+
+        function checkPracticeAnswer(btnEl, selectedOriginalKey, correctOriginalKey, qId) {
+            const container = document.getElementById('options-container');
+            const btns = container.querySelectorAll('button');
+            btns.forEach(b => b.disabled = true);
+
+            if (selectedOriginalKey === correctOriginalKey) {
+                btnEl.classList.remove('bg-slate-50', 'dark:bg-slate-900/50', 'border-slate-200');
+                btnEl.classList.add('bg-emerald-50', 'dark:bg-emerald-950/60', 'border-emerald-500', 'text-emerald-800', 'dark:text-emerald-200', 'font-semibold');
+                userMistakes = userMistakes.filter(id => id !== qId);
+            } else {
+                btnEl.classList.remove('bg-slate-50', 'dark:bg-slate-900/50', 'border-slate-200');
+                btnEl.classList.add('bg-rose-50', 'dark:bg-rose-950/60', 'border-rose-500', 'text-rose-800', 'dark:text-rose-200', 'font-semibold');
+
+                // Find and highlight correct option button
+                btns.forEach(b => {
+                    if (b.getAttribute('data-orig-key') === correctOriginalKey) {
+                        b.classList.remove('bg-slate-50', 'dark:bg-slate-900/50', 'border-slate-200');
+                        b.classList.add('bg-emerald-50', 'dark:bg-emerald-950/60', 'border-emerald-500', 'text-emerald-800', 'dark:text-emerald-200', 'font-semibold');
+                    }
+                });
+
+                if (!userMistakes.includes(qId)) {
+                    userMistakes.push(qId);
+                }
+            }
+
+            localStorage.setItem('qc_mistakes', JSON.stringify(userMistakes));
+            updateBadgesAndStats();
+        }
+
+        function submitExam() {
+            clearInterval(timerInterval);
+            let score = 0;
+            let correctCount = 0;
+            let wrongCount = 0;
+
+            currentQuestions.forEach(q => {
+                const userAns = examAnswers[q.id];
+                if (userAns === q.answer) {
+                    score += 2;
+                    correctCount++;
+                } else {
+                    wrongCount++;
+                    if (!userMistakes.includes(q.id)) {
+                        userMistakes.push(q.id);
+                    }
+                }
+            });
+
+            localStorage.setItem('qc_mistakes', JSON.stringify(userMistakes));
+            updateBadgesAndStats();
+
+            document.getElementById('result-score').innerText = score;
+            document.getElementById('result-correct').innerText = `${correctCount} / 50`;
+            document.getElementById('result-wrong').innerText = `${wrongCount} / 50`;
+
+            switchView('result');
+        }
+
+        function handleSearch() {
+            const kw = document.getElementById('search-input').value.trim().toLowerCase();
+            const info = document.getElementById('search-results-info');
+
+            if (!kw) {
+                info.classList.add('hidden');
+                return;
+            }
+
+            const matched = allQuestions.filter(q => 
+                q.stem.toLowerCase().includes(kw) || 
+                Object.values(q.options).some(opt => opt.toLowerCase().includes(kw))
+            );
+
+            info.classList.remove('hidden');
+            info.innerHTML = `找到 <b>${matched.length}</b> 筆相關題目。 <a href="javascript:void(0)" onclick="startSearchPractice()" class="text-indigo-600 dark:text-indigo-400 font-bold ml-1 underline">立即練習</a>`;
+            window.searchMatchedList = matched;
+        }
+
+        function startSearchPractice() {
+            if (!window.searchMatchedList || window.searchMatchedList.length === 0) return;
+            currentQuestions = window.searchMatchedList;
+            currentIndex = 0;
+            isExamMode = false;
+            isReciteMode = false;
+            document.getElementById('quiz-mode-tag').innerText = "搜尋結果";
+            switchView('quiz');
+            renderQuestion();
+        }
+
+        function showBookmarkView() {
+            if (userBookmarks.length === 0) return alert("目前沒有收藏題目！");
+            currentQuestions = allQuestions.filter(q => userBookmarks.includes(q.id));
+            currentIndex = 0;
+            isExamMode = false;
+            isReciteMode = false;
+            document.getElementById('quiz-mode-tag').innerText = "我的收藏";
+            switchView('quiz');
+            renderQuestion();
+        }
+
+        function showMistakeView() {
+            if (userMistakes.length === 0) return alert("沒有錯題紀錄！太棒了！");
+            currentQuestions = allQuestions.filter(q => userMistakes.includes(q.id));
+            currentIndex = 0;
+            isExamMode = false;
+            isReciteMode = false;
+            document.getElementById('quiz-mode-tag').innerText = "錯題集本";
+            switchView('quiz');
+            renderQuestion();
+        }
+
+        function reviewExamMistakes() {
+            const wrongIds = currentQuestions.filter(q => examAnswers[q.id] !== q.answer).map(q => q.id);
+            if (wrongIds.length === 0) return alert("本次測驗全對，沒有錯題！");
+            currentQuestions = allQuestions.filter(q => wrongIds.includes(q.id));
+            currentIndex = 0;
+            isExamMode = false;
+            isReciteMode = false;
+            document.getElementById('quiz-mode-tag').innerText = "本次考題重測";
+            switchView('quiz');
+            renderQuestion();
+        }
+
+        function toggleBookmarkCurrent() {
+            const q = currentQuestions[currentIndex];
+            if (userBookmarks.includes(q.id)) {
+                userBookmarks = userBookmarks.filter(id => id !== q.id);
+            } else {
+                userBookmarks.push(q.id);
+            }
+            localStorage.setItem('qc_bookmarks', JSON.stringify(userBookmarks));
+            updateBadgesAndStats();
+            renderQuestion();
+        }
+
+        function nextQuestion() {
+            if (currentIndex < currentQuestions.length - 1) {
+                currentIndex++;
+                renderQuestion();
+            } else {
+                alert("已達最後一題！");
+            }
+        }
+
+        function prevQuestion() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderQuestion();
+            }
+        }
+
+        function goHome() {
+            clearInterval(timerInterval);
+            switchView('home');
+            updateBadgesAndStats();
+        }
+
+        function switchView(viewName) {
+            document.getElementById('view-home').classList.toggle('hidden', viewName !== 'home');
+            document.getElementById('view-quiz').classList.toggle('hidden', viewName !== 'quiz');
+            document.getElementById('view-result').classList.toggle('hidden', viewName !== 'result');
+        }
+
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-icon').className = 'fa-solid fa-moon';
+            }
+        }
+
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+                document.getElementById('theme-icon').className = 'fa-solid fa-moon';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+                document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+            }
+        }
+    </script>
+</body>
+</html>
